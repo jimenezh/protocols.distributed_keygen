@@ -18,7 +18,7 @@ class PaillierSharedKey(SecretKey):
     """
 
     def __init__(
-        self, n: int, t: int, player_id: int, share: int, delta: int, theta: int
+        self, n: int, t: int, player_id: int, share: int, delta: int, theta: int, x: int
     ) -> None:
         """
         Initializes a Paillier shared key.
@@ -30,6 +30,7 @@ class PaillierSharedKey(SecretKey):
         :param delta: factorial of number of parties
         :param theta: Value used in the computation of a full decryption after partial decryptions
             have been obtained. We refer to the paper for more details
+        :param x: secret share of n^-1 mod phi(n) used in randomness recovery
         """
         super().__init__()
         self.share = share
@@ -40,6 +41,7 @@ class PaillierSharedKey(SecretKey):
         self.theta = theta
         self.theta_inv = mod_inv(self.theta, self.n)
         self.delta = delta
+        self.x = x
 
     def partial_decrypt(self, ciphertext: PaillierCiphertext) -> int:
         """
@@ -124,6 +126,13 @@ class PaillierSharedKey(SecretKey):
         message = ((combined_decryption - 1) // self.n * self.theta_inv) % self.n
 
         return message
+
+    def partial_randomness_recovery(self, ciphertext: PaillierCiphertext, plaintext: int) -> int:
+        ciphertext_value = ciphertext.value
+        # Compute (ciphertext * (1-n*plaintext))^x mod n
+        partial_randomness = (ciphertext_value*(1-plaintext*self.n) ) % self.n_square
+        partial_randomness = pow_mod(partial_randomness, self.x, self.n)
+        return partial_randomness
 
     def __str__(self) -> str:
         """
